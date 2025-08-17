@@ -1,0 +1,56 @@
+{
+  "kind": "collectionType",
+  "collectionName": "students",
+  "info": {
+    "singularName": "student",
+    "pluralName": "students",
+    "displayName": "student"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string"
+    },
+    "email": {
+      "type": "email"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "dob": {
+      "type": "string"
+    },
+    "school_name": {
+      "type": "string"
+    },
+    "grade": {
+      "type": "string"
+    },
+    "section": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "mail_sent": {
+      "type": "boolean"
+    },
+    "wa_sent": {
+      "type": "boolean"
+    },
+    "payment_id": {
+      "type": "string"
+    },
+    "school": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::school.school"
+    },
+    "is_overseas": {
+      "type": "boolean"
+    }
+  }
+}
