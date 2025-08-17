@@ -21,7 +21,8 @@
       "type": "string"
     },
     "email": {
-      "type": "email"
+      "type": "email",
+      "unique": true
     },
     "is_overseas": {
       "type": "boolean"
