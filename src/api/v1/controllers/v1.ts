@@ -26,14 +26,15 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 publishedAt: null, // This keeps it as draft
                 payment_status: 'pending',
                 selected_addon: selectedAddon,
+                order_currency: data.is_overseas ? 'USD' : 'INR',
                 order_amount: selectedAddon ? (data.is_overseas ? selectedAddon.price * 100 : selectedAddon.priceInr * 100) : 0,
-                order_currency: data.is_overseas ? 'USD' : 'INR'
-
             };
 
             const student = await strapi.documents("api::student.student").create({
                 data: studentData
             });
+
+            console.log("student created");
 
             if (!student) {
                 ctx.throw(500, 'Failed to create student draft');
@@ -41,7 +42,8 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
 
             // If no addon selected (free registration), publish immediately
             if (!selectedAddon) {
-                await strapi.service('api::student.student').update(student.id, {
+                await strapi.documents('api::student.student').update({
+                    documentId: student.documentId,
                     data: {
                         publishedAt: new Date().toISOString(),
                         payment_status: 'completed',
@@ -65,11 +67,13 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 currency: orderCurrency,
                 receipt: `student_${student.id}_${Date.now()}`,
                 notes: {
-                    student_id: student.id.toString(),
+                    student_document_id: student.documentId,
                     addon_id: selectedAddon.id,
                     addon_name: selectedAddon.title
                 }
             });
+
+            console.log("order created");
 
 
             await strapi.documents('api::student.student').update({
@@ -80,6 +84,8 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                     order_currency: orderCurrency
                 }
             })
+
+            console.log("order updated");
 
             return {
                 success: true,
@@ -103,11 +109,11 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 razorpay_payment_id,
                 razorpay_order_id,
                 razorpay_signature,
-                student_id,
+                student_document_id,
                 selectedAddon
             } = ctx.request.body;
 
-            if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature || !student_id) {
+            if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature || !student_document_id) {
                 ctx.throw(400, 'Missing required payment verification parameters');
             }
 
@@ -122,25 +128,29 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 ctx.throw(400, 'Invalid payment signature');
             }
 
-            // Get the student record
-            const student = await strapi.service('api::student.student').findOne(student_id);
+            // Get the student record using document API
+            const student = await strapi.documents('api::student.student').findOne({
+                documentId: student_document_id
+            });
             if (!student) {
                 ctx.throw(404, 'Student not found');
             }
 
             // Verify order amount matches
+            // @ts-ignore
             if (student.order_amount !== (selectedAddon ? (student.is_overseas ? selectedAddon.price * 100 : selectedAddon.priceInr * 100) : 0)) {
                 ctx.throw(400, 'Order amount mismatch');
             }
 
-            // Update student with payment details and publish
-            const updatedStudent = await strapi.service('api::student.student').update(student_id, {
+            // Update student with payment details and publish using document API
+            const updatedStudent = await strapi.documents('api::student.student').update({
+                documentId: student_document_id,
                 data: {
-                    payment_id: razorpay_payment_id,
                     payment_status: 'completed',
-                    payment_verified_at: new Date().toISOString(),
+                    selected_addon: selectedAddon,
+                    payment_id: razorpay_payment_id,
                     publishedAt: new Date().toISOString(), // Publish the student
-                    selected_addon: selectedAddon
+                    payment_verified_at: new Date().toISOString(),
                 }
             });
 
@@ -158,24 +168,6 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
     async webhookHandler(ctx) {
         try {
             const { body } = ctx.request;
-
-            // Verify webhook signature
-            const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-            const signature = ctx.request.headers['x-razorpay-signature'];
-
-            if (!signature) {
-                ctx.throw(400, 'Missing webhook signature');
-            }
-
-            const expectedSignature = crypto
-                .createHmac('sha256', webhookSecret)
-                .update(JSON.stringify(body))
-                .digest('hex');
-
-            if (signature !== expectedSignature) {
-                ctx.throw(400, 'Invalid webhook signature');
-            }
-
             const event = body.event;
             const payload = body.payload;
 
@@ -183,31 +175,35 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 const payment = payload.payment.entity;
                 const order = payload.order.entity;
 
+                // Validate payment description contains 'NAC25'
+                if (!payment.description || !payment.description.includes('NAC25')) {
+                    console.warn(`Webhook: Payment description missing or does not contain 'NAC25'. Payment ID: ${payment.id}`);
+                    return { success: false, message: "Invalid payment description" };
+                }
+
                 // Find student by order ID
-                const student = await strapi.service('api::student.student').findOne({
-                    filters: { razorpay_order_id: order.id }
+                const student = await strapi.documents('api::student.student').findOne({
+                    documentId: order.notes.student_document_id
                 });
 
                 if (student) {
                     // Update student with payment details and publish
-                    await strapi.service('api::student.student').update(student.id, {
+                    await strapi.documents('api::student.student').update({
+                        documentId: student.documentId,
                         data: {
                             payment_id: payment.id,
                             payment_status: 'completed',
-                            payment_verified_at: new Date().toISOString(),
-                            publishedAt: new Date().toISOString(), // Publish the student
                             payment_method: payment.method,
+                            publishedAt: new Date().toISOString(), // Publish the student
+                            payment_verified_at: new Date().toISOString(),
                             payment_captured_at: new Date(payment.captured_at * 1000).toISOString()
                         }
                     });
-
                     // Log successful webhook processing
                     console.log(`Webhook: Payment captured for student ${student.id}, order ${order.id}`);
                 }
             }
-
             return { success: true, message: 'Webhook processed successfully' };
-
         } catch (err) {
             console.error('Webhook error:', err);
             ctx.throw(err.status || 500, err.message || 'Webhook processing failed');

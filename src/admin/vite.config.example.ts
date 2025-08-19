@@ -8,5 +8,10 @@ export default (config: UserConfig) => {
         '@': '/src',
       },
     },
+    server: {
+      allowedHosts: [
+        '0f0932c4d474.ngrok-free.app',
+      ],
+    },
   });
 };
