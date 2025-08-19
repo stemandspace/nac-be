@@ -1,0 +1,10 @@
+{
+  "phases": {
+    "install": {
+      "cmds": ["npm install --force"]
+    },
+    "build": {
+      "cmds": ["npm run build"]
+    }
+  }
+}
