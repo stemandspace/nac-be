@@ -51,6 +51,32 @@
     },
     "is_overseas": {
       "type": "boolean"
+    },
+    "payment_status": {
+      "type": "enumeration",
+      "enum": ["pending", "completed", "failed"],
+      "default": "pending"
+    },
+    "selected_addon": {
+      "type": "json"
+    },
+    "order_amount": {
+      "type": "biginteger"
+    },
+    "order_currency": {
+      "type": "string"
+    },
+    "razorpay_order_id": {
+      "type": "string"
+    },
+    "payment_verified_at": {
+      "type": "datetime"
+    },
+    "payment_method": {
+      "type": "string"
+    },
+    "payment_captured_at": {
+      "type": "datetime"
     }
   }
 }

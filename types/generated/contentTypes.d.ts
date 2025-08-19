@@ -447,6 +447,30 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiV1V1 extends Struct.CollectionTypeSchema {
+  collectionName: 'v1s';
+  info: {
+    displayName: 'v1';
+    pluralName: 'v1s';
+    singularName: 'v1';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::v1.v1'> &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface PluginContentReleasesRelease
   extends Struct.CollectionTypeSchema {
   collectionName: 'strapi_releases';
@@ -958,6 +982,7 @@ declare module '@strapi/strapi' {
       'admin::user': AdminUser;
       'api::school.school': ApiSchoolSchool;
       'api::student.student': ApiStudentStudent;
+      'api::v1.v1': ApiV1V1;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;
