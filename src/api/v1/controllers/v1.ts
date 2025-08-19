@@ -10,7 +10,6 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
     async saveDraftAndCreateOrder(ctx) {
         try {
             const { data, selectedAddon } = ctx.request.body;
-
             // Basic validat ion: check if data exists and required fields are present
             if (!data) {
                 ctx.throw(400, 'Missing data in request body');
@@ -29,9 +28,12 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 selected_addon: selectedAddon,
                 order_amount: selectedAddon ? (data.is_overseas ? selectedAddon.price * 100 : selectedAddon.priceInr * 100) : 0,
                 order_currency: data.is_overseas ? 'USD' : 'INR'
+
             };
 
-            const student = await strapi.service('api::student.student').create(studentData);
+            const student = await strapi.documents("api::student.student").create({
+                data: studentData
+            });
 
             if (!student) {
                 ctx.throw(500, 'Failed to create student draft');
@@ -69,14 +71,15 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 }
             });
 
-            // Update student with order details
-            await strapi.service('api::student.student').update(student.id, {
+
+            await strapi.documents('api::student.student').update({
+                documentId: student.documentId,
                 data: {
                     razorpay_order_id: order.id,
                     order_amount: orderAmount,
                     order_currency: orderCurrency
                 }
-            });
+            })
 
             return {
                 success: true,

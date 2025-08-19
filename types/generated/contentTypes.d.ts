@@ -434,12 +434,23 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     mail_sent: Schema.Attribute.Boolean;
     name: Schema.Attribute.String;
+    order_amount: Schema.Attribute.BigInteger;
+    order_currency: Schema.Attribute.String;
+    payment_captured_at: Schema.Attribute.DateTime;
     payment_id: Schema.Attribute.String;
+    payment_method: Schema.Attribute.String;
+    payment_status: Schema.Attribute.Enumeration<
+      ['pending', 'completed', 'failed']
+    > &
+      Schema.Attribute.DefaultTo<'pending'>;
+    payment_verified_at: Schema.Attribute.DateTime;
     phone: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
+    razorpay_order_id: Schema.Attribute.String;
     school: Schema.Attribute.Relation<'oneToOne', 'api::school.school'>;
     school_name: Schema.Attribute.String;
     section: Schema.Attribute.String;
+    selected_addon: Schema.Attribute.JSON;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
