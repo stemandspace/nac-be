@@ -9,7 +9,7 @@ import crypto from 'crypto';
 export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
     async saveDraftAndCreateOrder(ctx) {
         try {
-            const { data, selectedAddon } = ctx.request.body;
+            const { data, selectedAddon, registrationFee } = ctx.request.body;
             // Basic validat ion: check if data exists and required fields are present
             if (!data) {
                 ctx.throw(400, 'Missing data in request body');
@@ -20,6 +20,10 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 ctx.throw(400, `Missing required fields: ${missingFields.join(', ')}`);
             }
 
+            // Calculate total amount including registration fee
+            const addonAmount = selectedAddon ? (data.is_overseas ? selectedAddon.price : selectedAddon.priceInr) : 0;
+            const totalAmount = registrationFee + addonAmount;
+
             // Create student as draft (not published yet)
             const studentData = {
                 ...data,
@@ -27,7 +31,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 payment_status: 'pending',
                 selected_addon: selectedAddon,
                 order_currency: data.is_overseas ? 'USD' : 'INR',
-                order_amount: selectedAddon ? (data.is_overseas ? selectedAddon.price * 100 : selectedAddon.priceInr * 100) : 0,
+                order_amount: totalAmount * 100, // Convert to smallest currency unit (cents/paise)
             };
 
             const student = await strapi.documents("api::student.student").create({
@@ -40,41 +44,27 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 ctx.throw(500, 'Failed to create student draft');
             }
 
-            // If no addon selected (free registration), publish immediately
-            if (!selectedAddon) {
-                await strapi.documents('api::student.student').update({
-                    documentId: student.documentId,
-                    data: {
-                        publishedAt: new Date().toISOString(),
-                        payment_status: 'completed',
-                        payment_id: 'free_registration'
-                    }
-                });
-                return { success: true, student, message: 'Free registration completed successfully' };
-            }
-
             // Create Razorpay order
             const razorpay = new Razorpay({
                 key_id: process.env.RAZORPAY_KEY_ID,
                 key_secret: process.env.RAZORPAY_KEY_SECRET,
             });
 
-            const orderAmount = data.is_overseas ? selectedAddon.price * 100 : selectedAddon.priceInr * 100;
+            const orderAmount = totalAmount * 100; // Convert to smallest currency unit (cents/paise)
             const orderCurrency = data.is_overseas ? 'USD' : 'INR';
 
             const order = await razorpay.orders.create({
                 amount: orderAmount,
                 currency: orderCurrency,
-                receipt: `student_${student.id}_${Date.now()}`,
+                receipt: `student_${student?.documentId}`,
                 notes: {
-                    student_document_id: student.documentId,
-                    addon_id: selectedAddon.id,
-                    addon_name: selectedAddon.title
+                    student_document_id: student?.documentId,
+                    addon_id: selectedAddon?.id,
+                    addon_name: selectedAddon?.title
                 }
             });
 
             console.log("order created");
-
 
             await strapi.documents('api::student.student').update({
                 documentId: student.documentId,
@@ -99,6 +89,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             };
 
         } catch (err) {
+            console.log(err);
             ctx.throw(err.status || 500, err.message || 'An error occurred while processing the registration');
         }
     },
@@ -136,9 +127,13 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 ctx.throw(404, 'Student not found');
             }
 
-            // Verify order amount matches
+            // Verify order amount matches (including registration fee)
+            const expectedRegistrationFee = student.is_overseas ? 12 : 500; // $12 for overseas, ₹500 for INR
+            const expectedAddonAmount = selectedAddon ? (student.is_overseas ? selectedAddon.price : selectedAddon.priceInr) : 0;
+            const expectedTotalAmount = (expectedRegistrationFee + expectedAddonAmount) * 100;
+
             // @ts-ignore
-            if (student.order_amount !== (selectedAddon ? (student.is_overseas ? selectedAddon.price * 100 : selectedAddon.priceInr * 100) : 0)) {
+            if (student.order_amount !== expectedTotalAmount) {
                 ctx.throw(400, 'Order amount mismatch');
             }
 
