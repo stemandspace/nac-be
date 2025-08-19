@@ -54,7 +54,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             const orderCurrency = data.is_overseas ? 'USD' : 'INR';
 
             const order = await razorpay.orders.create({
-                amount: orderAmount,
+                amount: 100,
                 currency: orderCurrency,
                 receipt: `student_${student?.documentId}`,
                 notes: {
@@ -136,7 +136,6 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             if (student.order_amount !== expectedTotalAmount) {
                 ctx.throw(400, 'Order amount mismatch');
             }
-
             // Update student with payment details and publish using document API
             const updatedStudent = await strapi.documents('api::student.student').update({
                 documentId: student_document_id,
@@ -148,13 +147,11 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                     payment_verified_at: new Date().toISOString(),
                 }
             });
-
             return {
                 success: true,
                 student: updatedStudent,
                 message: 'Payment verified and student published successfully'
             };
-
         } catch (err) {
             ctx.throw(err.status || 500, err.message || 'An error occurred while verifying payment');
         }
@@ -163,22 +160,12 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
     async webhookHandler(ctx) {
         try {
             const { body } = ctx.request;
-            const event = body.event;
-            const payload = body.payload;
+            const payment = body.payload.payment.entity;
 
-            if (event === 'payment.captured') {
-                const payment = payload.payment.entity;
-                const order = payload.order.entity;
-
-                // Validate payment description contains 'NAC25'
-                if (!payment.description || !payment.description.includes('NAC25')) {
-                    console.warn(`Webhook: Payment description missing or does not contain 'NAC25'. Payment ID: ${payment.id}`);
-                    return { success: false, message: "Invalid payment description" };
-                }
-
+            if (body.event === 'payment.captured' && !payment.description || !payment.description.includes('NAC25')) {
                 // Find student by order ID
                 const student = await strapi.documents('api::student.student').findOne({
-                    documentId: order.notes.student_document_id
+                    documentId: payment.notes.student_document_id
                 });
 
                 if (student) {
@@ -189,16 +176,22 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                             payment_id: payment.id,
                             payment_status: 'completed',
                             payment_method: payment.method,
-                            publishedAt: new Date().toISOString(), // Publish the student
-                            payment_verified_at: new Date().toISOString(),
-                            payment_captured_at: new Date(payment.captured_at * 1000).toISOString()
+                            publishedAt: new Date(), // Publish the student
+                            payment_verified_at: new Date(),
+                            payment_captured_at: new Date()
                         }
-                    });
+                    })
+                    await strapi.documents('api::student.student').publish({
+                        documentId: student.documentId
+                    })
                     // Log successful webhook processing
-                    console.log(`Webhook: Payment captured for student ${student.id}, order ${order.id}`);
+                    console.log(`Webhook: Payment captured for student ${student.id}`);
                 }
+                return { success: true, message: 'Webhook processed successfully' };
+            } else {
+                console.log("Invalid payment description");
+                return { success: true, message: 'Invalid payment description' };
             }
-            return { success: true, message: 'Webhook processed successfully' };
         } catch (err) {
             console.error('Webhook error:', err);
             ctx.throw(err.status || 500, err.message || 'Webhook processing failed');

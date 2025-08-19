@@ -17,9 +17,6 @@ export default (config: UserConfig) => {
                 '.ngrok-free.app',
                 '.ngrok.io',
             ],
-            // Additional server options for better ngrok compatibility
-            host: '0.0.0.0',
-            port: 1337,
         },
     });
 };

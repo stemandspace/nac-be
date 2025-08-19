@@ -7,16 +7,7 @@ export default [
     config: {
       enabled: true,
       headers: '*',
-      origin: [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:3001',
-        'https://0f0932c4d474.ngrok-free.app',
-        // Allow all ngrok hosts
-        /^https:\/\/.*\.ngrok-free\.app$/,
-        /^https:\/\/.*\.ngrok\.io$/
-      ]
+      origin: ['*'],
     }
   },
   'strapi::poweredBy',
