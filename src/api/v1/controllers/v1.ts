@@ -163,7 +163,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             console.log("body", JSON.stringify(body, null, 2));
             const payment = body.payload.payment.entity;
 
-            if (body.event === 'payment.captured' && !payment.description || !payment.description.includes('NAC25')) {
+            if (body.event === 'payment.captured' && payment.description.includes('NAC25')) {
                 // Find student by order ID
                 const student = await strapi.documents('api::student.student').findOne({
                     documentId: payment.notes.student_document_id
