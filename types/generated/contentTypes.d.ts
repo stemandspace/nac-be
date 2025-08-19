@@ -423,7 +423,7 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     dob: Schema.Attribute.String;
-    email: Schema.Attribute.Email;
+    email: Schema.Attribute.Email & Schema.Attribute.Unique;
     grade: Schema.Attribute.String;
     is_overseas: Schema.Attribute.Boolean;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
