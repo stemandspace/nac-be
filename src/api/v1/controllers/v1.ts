@@ -24,6 +24,41 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             const addonAmount = selectedAddon ? (data.is_overseas ? selectedAddon.price : selectedAddon.priceInr) : 0;
             const totalAmount = registrationFee + addonAmount;
 
+            // Find existing student registration by email (if any)
+            // Find existing student registration by email (if any)
+            const existingStudents = await strapi.documents('api::student.student').findMany({
+                filters: {
+                    email: data.email
+                }
+            });
+            // Find the most recent registration (if multiple, pick the latest by createdAt)
+            let registration = null;
+            if (existingStudents && existingStudents.length > 0) {
+                registration = existingStudents.reduce((latest, curr) => {
+                    if (!latest) return curr;
+                    return new Date(curr.createdAt) > new Date(latest.createdAt) ? curr : latest;
+                }, null);
+            }
+
+            console.log("registration found", registration);
+
+            // If the registration is already completed, return false
+            if (registration && registration.payment_status === 'completed') {
+                return {
+                    success: false,
+                    message: 'Registration already exists'
+                }
+            } else if (registration && registration.payment_status === 'pending') {
+                // Delete all pending registrations for this email to avoid duplicates
+                for (const reg of existingStudents) {
+                    if (reg.payment_status === 'pending') {
+                        await strapi.documents('api::student.student').delete({
+                            documentId: reg.documentId
+                        });
+                    }
+                }
+            }
+
             // Create student as draft (not published yet)
             const studentData = {
                 ...data,
@@ -32,6 +67,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 selected_addon: selectedAddon,
                 order_currency: data.is_overseas ? 'USD' : 'INR',
                 order_amount: totalAmount * 100, // Convert to smallest currency unit (cents/paise)
+                // mail_sent: mail_sent
             };
 
             const student = await strapi.documents("api::student.student").create({
@@ -170,6 +206,53 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 });
 
                 if (student) {
+                    const isEmailRegisteredInCosmicKids = await strapi.service('api::v1.v1').isEmailRegisteredInCosmicKids(student.email);
+
+                    let mail_sent = false;
+
+                    if (isEmailRegisteredInCosmicKids.registered) {
+                        // user is already registered we dont need to update do anything
+                        const notification = await strapi.service('api::v1.v1').sendZeptoMailBatch([{
+                            address: student.email,
+                            name: student.name,
+                            merge_info: {
+                                password: "Use your old password",
+                                grade: student.grade,
+                                name: student.name,
+                                email: student.email
+                            }
+                        },])
+
+                        if (notification.message == "OK") {
+                            mail_sent = true;
+                        }
+
+                    } else {
+                        const password = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                        // user is not registered we need to create a new registration
+                        const cosmicKidsAccount = await strapi.service('api::v1.v1').createCosmicKidsAccount({
+                            username: student.email,
+                            email: student.email,
+                            password: password
+                        });
+
+                        console.log("cosmicKidsAccount", cosmicKidsAccount);
+
+                        const notification = await strapi.service('api::v1.v1').sendZeptoMailBatch([{
+                            address: student.email,
+                            name: student.name,
+                            merge_info: {
+                                password: password,
+                                grade: student.grade,
+                                name: student.name,
+                                email: student.email
+                            }
+                        }]);
+                        if (notification.message == "OK") {
+                            mail_sent = true;
+                        }
+                    }
+
                     // Update student with payment details and publish
                     await strapi.documents('api::student.student').update({
                         documentId: student.documentId,
@@ -179,7 +262,8 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                             payment_method: payment.method,
                             publishedAt: new Date(), // Publish the student
                             payment_verified_at: new Date(),
-                            payment_captured_at: new Date()
+                            payment_captured_at: new Date(),
+                            mail_sent: mail_sent
                         }
                     })
                     await strapi.documents('api::student.student').publish({
