@@ -205,6 +205,8 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                     documentId: payment.notes.student_document_id
                 });
 
+                console.log("student", student);
+
                 if (student) {
                     const isEmailRegisteredInCosmicKids = await strapi.service('api::v1.v1').isEmailRegisteredInCosmicKids(student.email);
 
@@ -219,7 +221,9 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 password: "Use your old password",
                                 grade: student.grade,
                                 name: student.name,
-                                email: student.email
+                                email: student.email,
+                                addon: student?.selected_addon?.toString() || "N/A"
+
                             }
                         },
                         {
@@ -229,7 +233,8 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 password: "Use your old password",
                                 grade: student.grade,
                                 name: student.name,
-                                email: student.email
+                                email: student.email,
+                                addon: student?.selected_addon?.toString() || "N/A"
                             }
                         },
                         {
@@ -239,7 +244,8 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 password: "Use your old password",
                                 grade: student.grade,
                                 name: student.name,
-                                email: student.email
+                                email: student.email,
+                                addon: student?.selected_addon.toString() || "N/A"
                             }
                         }
                         ])
@@ -266,7 +272,9 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 password: password,
                                 grade: student.grade,
                                 name: student.name,
-                                email: student.email
+                                email: student.email,
+                                addon: student?.selected_addon.toString() || "N/A"
+
                             }
                         },
                         {
@@ -276,7 +284,9 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 password: password,
                                 grade: student.grade,
                                 name: student.name,
-                                email: student.email
+                                email: student.email,
+                                addon: student?.selected_addon.toString() || "N/A"
+
                             }
                         },
                         {
@@ -286,7 +296,8 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 password: password,
                                 grade: student.grade,
                                 name: student.name,
-                                email: student.email
+                                email: student.email,
+                                addon: student?.selected_addon.toString() || "N/A"
                             }
                         }]);
                         if (notification.message == "OK") {

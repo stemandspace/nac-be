@@ -73,7 +73,8 @@ const v1Service = factories.createCoreService('api::v1.v1', ({ strapi }) => ({
      *     password: string,
      *     grade: string,
      *     name: string,
-     *     email: string
+     *     email: string,
+     *     addon: string
      *   }
      * }>} recipients - Array of recipient objects.
      * @returns {Promise<Object>} - The response from ZeptoMail API.
