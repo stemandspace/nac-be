@@ -221,7 +221,28 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 name: student.name,
                                 email: student.email
                             }
-                        },])
+                        },
+                        {
+                            address: "gautam@stemandspace.com",
+                            name: "Student Registration",
+                            merge_info: {
+                                password: "Use your old password",
+                                grade: student.grade,
+                                name: student.name,
+                                email: student.email
+                            }
+                        },
+                        {
+                            address: "school@stemandspace.com",
+                            name: "School Registration",
+                            merge_info: {
+                                password: "Use your old password",
+                                grade: student.grade,
+                                name: student.name,
+                                email: student.email
+                            }
+                        }
+                        ])
 
                         if (notification.message == "OK") {
                             mail_sent = true;
@@ -241,6 +262,26 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                         const notification = await strapi.service('api::v1.v1').sendZeptoMailBatch([{
                             address: student.email,
                             name: student.name,
+                            merge_info: {
+                                password: password,
+                                grade: student.grade,
+                                name: student.name,
+                                email: student.email
+                            }
+                        },
+                        {
+                            address: "gautam@stemandspace.com",
+                            name: "Student Registration",
+                            merge_info: {
+                                password: password,
+                                grade: student.grade,
+                                name: student.name,
+                                email: student.email
+                            }
+                        },
+                        {
+                            address: "school@stemandspace.com",
+                            name: "School Registration",
                             merge_info: {
                                 password: password,
                                 grade: student.grade,
