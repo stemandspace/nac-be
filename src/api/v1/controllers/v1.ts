@@ -258,9 +258,12 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                             password: password
                         });
 
-                        user_id = cosmicKidsAccount.id
+                        const isEmailRegisteredInCosmicKids = await strapi.service('api::v1.v1').isEmailRegisteredInCosmicKids(student.email);
+
+                        user_id = isEmailRegisteredInCosmicKids.userId
 
                         console.log("cosmicKidsAccount", cosmicKidsAccount);
+
                         const notification = await strapi.service('api::v1.v1').sendZeptoMailBatch([{
                             address: student.email,
                             name: student.name,
