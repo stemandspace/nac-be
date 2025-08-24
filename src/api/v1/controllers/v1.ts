@@ -223,22 +223,10 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 name: student.name,
                                 email: student.email,
                                 addon: student?.selected_addon?.toString() || "N/A"
-
                             }
                         },
                         {
-                            address: "gautam@stemandspace.com",
-                            name: "Student Registration",
-                            merge_info: {
-                                password: "Use your old password",
-                                grade: student.grade,
-                                name: student.name,
-                                email: student.email,
-                                addon: student?.selected_addon?.toString() || "N/A"
-                            }
-                        },
-                        {
-                            address: "school@stemandspace.com",
+                            address: "ckc@stemandspace.com",
                             name: "School Registration",
                             merge_info: {
                                 password: "Use your old password",
@@ -278,19 +266,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                             }
                         },
                         {
-                            address: "gautam@stemandspace.com",
-                            name: "Student Registration",
-                            merge_info: {
-                                password: password,
-                                grade: student.grade,
-                                name: student.name,
-                                email: student.email,
-                                addon: student?.selected_addon.toString() || "N/A"
-
-                            }
-                        },
-                        {
-                            address: "school@stemandspace.com",
+                            address: "ckc@stemandspace.com",
                             name: "School Registration",
                             merge_info: {
                                 password: password,
@@ -331,7 +307,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             }
         } catch (err) {
             console.error('Webhook error:', err);
-            ctx.throw(err.status || 500, err.message || 'Webhook processing failed');
+            ctx.throw(err.status || 200, err.message || 'Webhook processing failed');
         }
     }
 }))
