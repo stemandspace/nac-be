@@ -198,20 +198,19 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             const { body } = ctx.request;
             console.log("body", JSON.stringify(body, null, 2));
             const payment = body.payload.payment.entity;
-
             if (body.event === 'payment.captured' && payment.description.includes('NAC25')) {
                 // Find student by order ID
                 const student = await strapi.documents('api::student.student').findOne({
                     documentId: payment.notes.student_document_id
                 });
+                // @ts-ignore
+                const addon_title = student?.selected_addon?.title || "N/A";
 
                 console.log("student", student);
 
                 if (student) {
                     const isEmailRegisteredInCosmicKids = await strapi.service('api::v1.v1').isEmailRegisteredInCosmicKids(student.email);
-
                     let mail_sent = false;
-
                     if (isEmailRegisteredInCosmicKids.registered) {
                         // user is already registered we dont need to update do anything
                         const notification = await strapi.service('api::v1.v1').sendZeptoMailBatch([{
@@ -222,7 +221,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 grade: student.grade,
                                 name: student.name,
                                 email: student.email,
-                                addon: student?.selected_addon?.toString() || "N/A"
+                                addon: addon_title
                             }
                         },
                         {
@@ -233,7 +232,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 grade: student.grade,
                                 name: student.name,
                                 email: student.email,
-                                addon: student?.selected_addon.toString() || "N/A"
+                                addon: addon_title
                             }
                         }
                         ])
@@ -250,9 +249,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                             email: student.email,
                             password: password
                         });
-
                         console.log("cosmicKidsAccount", cosmicKidsAccount);
-
                         const notification = await strapi.service('api::v1.v1').sendZeptoMailBatch([{
                             address: student.email,
                             name: student.name,
@@ -261,7 +258,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 grade: student.grade,
                                 name: student.name,
                                 email: student.email,
-                                addon: student?.selected_addon.toString() || "N/A"
+                                addon: addon_title
 
                             }
                         },
@@ -273,7 +270,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 grade: student.grade,
                                 name: student.name,
                                 email: student.email,
-                                addon: student?.selected_addon.toString() || "N/A"
+                                addon: addon_title
                             }
                         }]);
                         if (notification.message == "OK") {
