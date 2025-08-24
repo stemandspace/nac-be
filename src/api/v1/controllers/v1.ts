@@ -1,7 +1,6 @@
 /**
  * v1 controller
  */
-
 import { factories } from '@strapi/strapi'
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
@@ -198,6 +197,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             const { body } = ctx.request;
             console.log("body", JSON.stringify(body, null, 2));
             const payment = body.payload.payment.entity;
+
             if (body.event === 'payment.captured' && payment.description.includes('NAC25')) {
                 // Find student by order ID
                 const student = await strapi.documents('api::student.student').findOne({
@@ -206,12 +206,20 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 // @ts-ignore
                 const addon_title = student?.selected_addon?.title || "N/A";
 
+                // @ts-ignore   
+                const addon_id = student?.selected_addon?.id || null;
+
+                let user_id = null
+
                 console.log("student", student);
 
                 if (student) {
                     const isEmailRegisteredInCosmicKids = await strapi.service('api::v1.v1').isEmailRegisteredInCosmicKids(student.email);
+
                     let mail_sent = false;
                     if (isEmailRegisteredInCosmicKids.registered) {
+
+                        user_id = isEmailRegisteredInCosmicKids.userId
                         // user is already registered we dont need to update do anything
                         const notification = await strapi.service('api::v1.v1').sendZeptoMailBatch([{
                             address: student.email,
@@ -249,6 +257,9 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                             email: student.email,
                             password: password
                         });
+
+                        user_id = cosmicKidsAccount.id
+
                         console.log("cosmicKidsAccount", cosmicKidsAccount);
                         const notification = await strapi.service('api::v1.v1').sendZeptoMailBatch([{
                             address: student.email,
@@ -291,9 +302,24 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                             mail_sent: mail_sent
                         }
                     })
+
                     await strapi.documents('api::student.student').publish({
                         documentId: student.documentId
                     })
+
+                    if (user_id && addon_id) {
+                        const addonsPayload = {
+                            userId: user_id,
+                            addons: {
+                                type: addon_id,
+                                amount: payment.amount / 100,
+                                credits: addon_id === "credits" ? 35 : addon_id === "basic" ? 240 : 315
+                            }
+                        }
+                        console.log("addonsPayload", addonsPayload);
+                        await strapi.service('api::v1.v1').addUserAddons(addonsPayload)
+                    }
+
                     // Log successful webhook processing
                     console.log(`Webhook: Payment captured for student ${student.id}`);
                 }

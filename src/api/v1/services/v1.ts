@@ -114,6 +114,57 @@ const v1Service = factories.createCoreService('api::v1.v1', ({ strapi }) => ({
             strapi.log.error('Error sending ZeptoMail batch email:', error?.response?.data || error.message);
             throw new Error('Failed to send ZeptoMail batch email');
         }
+    },
+
+    /**
+     * Adds addons to a user's account in the Cosmic Kids system.
+     * @param {Object} params - The addon parameters.
+     * @param {number} params.userId - The user ID to add addons to.
+     * @param {Object} params.addons - The addon details.
+     * @param {string} params.addons.type - The type of addon (e.g., "premium").
+     * @param {number} params.addons.amount - The amount for the addon.
+     * @param {number} params.addons.credits - The number of credits to add.
+     * @returns {Promise<Object>} - The response from the Cosmic Kids Club API.
+     */
+    async addUserAddons({ userId, addons }: {
+        userId: number,
+        addons: {
+            type: "credits" | "basic" | "premium",
+            amount: number,
+            credits: number
+        }
+    }) {
+        if (!userId || !addons) {
+            throw new Error('UserId and addons are required');
+        }
+
+        if (!addons.type || !addons.amount || !addons.credits) {
+            throw new Error('Addon type, amount, and credits are required');
+        }
+
+        try {
+            const url = `${COSMIC_KIDS_API_BASE}/v1/user/addons`;
+            const payload = {
+                userId,
+                addons: {
+                    type: addons.type,
+                    amount: addons.amount,
+                    credits: addons.credits
+                }
+            };
+
+            const response = await axios.post(url, payload, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': `Zoho-enczapikey ${ZEPTO_MAIL_API_KEY}`
+                }
+            });
+            return response.data;
+        } catch (error) {
+            strapi.log.error('Error adding user addons in Cosmic Kids:', error?.response?.data || error.message);
+            throw new Error('Failed to add user addons in Cosmic Kids Club');
+        }
     }
 }));
 
