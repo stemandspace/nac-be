@@ -89,7 +89,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             const orderCurrency = data.is_overseas ? 'USD' : 'INR';
 
             const order = await razorpay.orders.create({
-                amount: 100,
+                amount: orderAmount,
                 currency: orderCurrency,
                 receipt: `student_${student?.documentId}`,
                 notes: {
