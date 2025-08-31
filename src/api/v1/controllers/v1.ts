@@ -22,6 +22,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             // Calculate total amount including registration fee
             const addonAmount = selectedAddon ? (data.is_overseas ? selectedAddon.price : selectedAddon.priceInr) : 0;
             const totalAmount = registrationFee + addonAmount;
+            const totalAmountWithGst = data.is_overseas ? totalAmount : totalAmount + (totalAmount * 0.18);
 
             // Find existing student registration by email (if any)
             // Find existing student registration by email (if any)
@@ -65,7 +66,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 payment_status: 'pending',
                 selected_addon: selectedAddon,
                 order_currency: data.is_overseas ? 'USD' : 'INR',
-                order_amount: totalAmount * 100, // Convert to smallest currency unit (cents/paise)
+                order_amount: totalAmountWithGst * 100, // Convert to smallest currency unit (cents/paise)
                 // mail_sent: mail_sent
             };
 
@@ -85,7 +86,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 key_secret: process.env.RAZORPAY_KEY_SECRET,
             });
 
-            const orderAmount = totalAmount * 100; // Convert to smallest currency unit (cents/paise)
+            const orderAmount = totalAmountWithGst * 100; // Convert to smallest currency unit (cents/paise)
             const orderCurrency = data.is_overseas ? 'USD' : 'INR';
 
             const order = await razorpay.orders.create({
