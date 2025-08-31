@@ -20,7 +20,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             }
 
             // Calculate total amount including registration fee
-            const addonAmount = selectedAddon ? (data.is_overseas ? selectedAddon.price : selectedAddon.priceInr) : 0;
+            const addonAmount = selectedAddon ? (data.is_overseas ? selectedAddon.originalPrice : selectedAddon.originalPriceInr) : 0;
             const totalAmount = registrationFee + addonAmount;
             const totalAmountWithGst = data.is_overseas ? totalAmount : totalAmount + (totalAmount * 0.18);
 
