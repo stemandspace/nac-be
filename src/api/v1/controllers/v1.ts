@@ -19,6 +19,8 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 ctx.throw(400, `Missing required fields: ${missingFields.join(', ')}`);
             }
 
+            const isStaffRegistration = data.email.includes('@spacetopia.in');
+
             // Calculate total amount including registration fee
             const addonAmount = selectedAddon ? (data.is_overseas ? selectedAddon.originalPrice : selectedAddon.originalPriceInr) : 0;
             const totalAmount = registrationFee + addonAmount;
@@ -91,7 +93,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
             const orderCurrency = data.is_overseas ? 'USD' : 'INR';
 
             const order = await razorpay.orders.create({
-                amount: orderAmount,
+                amount: isStaffRegistration ? 100 : orderAmount,
                 currency: orderCurrency,
                 receipt: `student_${student?.documentId}`,
                 notes: {
