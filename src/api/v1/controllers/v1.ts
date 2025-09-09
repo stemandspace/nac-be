@@ -97,9 +97,8 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                 currency: orderCurrency,
                 receipt: `student_${student?.documentId}`,
                 notes: {
+                    student_id: student?.id,
                     student_document_id: student?.documentId,
-                    addon_id: selectedAddon?.id,
-                    addon_name: selectedAddon?.title
                 }
             });
 
