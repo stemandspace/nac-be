@@ -15,7 +15,8 @@ export default factories.createCoreController('api::student.student', ({ strapi 
 
         const students = await strapi.documents('api::student.student').findMany({
             filters,
-            pageSize: 10000
+            pageSize: 10000,
+            sort: 'createdAt:desc'
         });
 
         const csv = await json2csv(students);
@@ -28,9 +29,17 @@ export default factories.createCoreController('api::student.student', ({ strapi 
     },
     schools: async (ctx) => {
         const schools = await strapi.documents('api::school.school').findMany({
-            pageSize: 10000
+            pageSize: 10000,
+            sort: 'createdAt:desc'
         });
-        const csv = await json2csv(schools);
+
+        // Add link field to each school
+        const schoolsWithLink = schools.map(school => ({
+            ...school,
+            link: `https://www.nationalastronomy.org/student-registration/form?schoolId=${school?.documentId}`
+        }));
+
+        const csv = await json2csv(schoolsWithLink);
 
         const filename = `schools_${Date.now()}.csv`;
 
