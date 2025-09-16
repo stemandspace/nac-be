@@ -1,9 +1,24 @@
 /**
  * v1 controller
  */
-import { factories } from '@strapi/strapi'
 import Razorpay from 'razorpay';
-import crypto from 'crypto';
+import { factories } from '@strapi/strapi'
+
+/**
+ * Get WhatsApp template ID based on addon type
+ * @param {string} addon_id - The addon ID
+ * @returns {string} - WhatsApp template ID
+ */
+function getWhatsAppTemplate(addon_id: string): string {
+    const templateMap: { [key: string]: string } = {
+        'credits': 'nac_spacetopia_cre',
+        'basic': 'nac_spacetopia_protostar',
+        'premium': 'nac_spacetopia_supernova'
+    };
+
+    return templateMap[addon_id] || 'nac_spacetopia_no_cre';
+}
+
 
 export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
     async saveDraftAndCreateOrder(ctx) {
@@ -132,69 +147,6 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
         }
     },
 
-    async verifyPaymentAndPublish(ctx) {
-        try {
-            const {
-                razorpay_payment_id,
-                razorpay_order_id,
-                razorpay_signature,
-                student_document_id,
-                selectedAddon
-            } = ctx.request.body;
-
-            if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature || !student_document_id) {
-                ctx.throw(400, 'Missing required payment verification parameters');
-            }
-
-            // Verify the payment signature
-            const text = `${razorpay_order_id}|${razorpay_payment_id}`;
-            const signature = crypto
-                .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-                .update(text)
-                .digest('hex');
-
-            if (signature !== razorpay_signature) {
-                ctx.throw(400, 'Invalid payment signature');
-            }
-
-            // Get the student record using document API
-            const student = await strapi.documents('api::student.student').findOne({
-                documentId: student_document_id
-            });
-            if (!student) {
-                ctx.throw(404, 'Student not found');
-            }
-
-            // Verify order amount matches (including registration fee)
-            const expectedRegistrationFee = student.is_overseas ? 12 : 500; // $12 for overseas, ₹500 for INR
-            const expectedAddonAmount = selectedAddon ? (student.is_overseas ? selectedAddon.price : selectedAddon.priceInr) : 0;
-            const expectedTotalAmount = (expectedRegistrationFee + expectedAddonAmount) * 100;
-
-            // @ts-ignore
-            if (student.order_amount !== expectedTotalAmount) {
-                ctx.throw(400, 'Order amount mismatch');
-            }
-            // Update student with payment details and publish using document API
-            const updatedStudent = await strapi.documents('api::student.student').update({
-                documentId: student_document_id,
-                data: {
-                    payment_status: 'completed',
-                    selected_addon: selectedAddon,
-                    payment_id: razorpay_payment_id,
-                    publishedAt: new Date().toISOString(), // Publish the student
-                    payment_verified_at: new Date().toISOString(),
-                }
-            });
-            return {
-                success: true,
-                student: updatedStudent,
-                message: 'Payment verified and student published successfully'
-            };
-        } catch (err) {
-            ctx.throw(err.status || 500, err.message || 'An error occurred while verifying payment');
-        }
-    },
-
     async webhookHandler(ctx) {
         try {
             const { body } = ctx.request;
@@ -218,43 +170,15 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
 
                 if (student) {
                     const isEmailRegisteredInCosmicKids = await strapi.service('api::v1.v1').isEmailRegisteredInCosmicKids(student.email);
+                    // If you have forgotten your password, you can change it in the application.
+                    let password = "Use your old password. If you have forgotten your password, you can change it in the application.";
 
-                    let mail_sent = false;
                     if (isEmailRegisteredInCosmicKids.registered) {
-
-                        user_id = isEmailRegisteredInCosmicKids.userId
-                        // user is already registered we dont need to update do anything
-                        const notification = await strapi.service('api::v1.v1').sendZeptoMailBatch([{
-                            address: student.email,
-                            name: student.name,
-                            merge_info: {
-                                password: "Use your old password",
-                                grade: student.grade,
-                                name: student.name,
-                                email: student.email,
-                                addon: addon_title
-                            }
-                        },
-                        {
-                            address: "ckc@stemandspace.com",
-                            name: "School Registration",
-                            merge_info: {
-                                password: "Use your old password",
-                                grade: student.grade,
-                                name: student.name,
-                                email: student.email,
-                                addon: addon_title
-                            }
-                        }
-                        ])
-
-                        if (notification.message == "OK") {
-                            mail_sent = true;
-                        }
-
+                        user_id = isEmailRegisteredInCosmicKids.userId;
+                        // User is already registered, no need to create new account
                     } else {
-                        const password = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-                        // user is not registered we need to create a new registration
+                        password = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                        // User is not registered, create new account
                         const cosmicKidsAccount = await strapi.service('api::v1.v1').createCosmicKidsAccount({
                             username: student.email,
                             email: student.email,
@@ -262,40 +186,57 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                         });
 
                         const isEmailRegisteredInCosmicKids = await strapi.service('api::v1.v1').isEmailRegisteredInCosmicKids(student.email);
-
-                        user_id = isEmailRegisteredInCosmicKids.userId
+                        user_id = isEmailRegisteredInCosmicKids.userId;
 
                         console.log("cosmicKidsAccount", cosmicKidsAccount);
-
-                        const notification = await strapi.service('api::v1.v1').sendZeptoMailBatch([{
-                            address: student.email,
-                            name: student.name,
-                            merge_info: {
-                                password: password,
-                                grade: student.grade,
-                                name: student.name,
-                                email: student.email,
-                                addon: addon_title
-
-                            }
-                        },
-                        {
-                            address: "ckc@stemandspace.com",
-                            name: "School Registration",
-                            merge_info: {
-                                password: password,
-                                grade: student.grade,
-                                name: student.name,
-                                email: student.email,
-                                addon: addon_title
-                            }
-                        }]);
-                        if (notification.message == "OK") {
-                            mail_sent = true;
-                        }
                     }
 
-                    // Update student with payment details and publish
+                    // Send unified notifications (email + WhatsApp) - completely non-blocking
+                    // Run notification service in background without blocking the main flow
+                    setImmediate(async () => {
+                        try {
+                            // Determine WhatsApp template based on addon type
+                            const whatsappTemplateId = getWhatsAppTemplate(addon_id);
+                            console.log(`Selected WhatsApp template: ${whatsappTemplateId} for addon: ${addon_id}`);
+
+                            // WhatsApp parameters - template changes based on addon type
+                            const whatsappParams = {
+                                templateId: whatsappTemplateId,
+                                parameters: [
+                                    { type: "text", text: student.name || 'Student' },
+                                ]
+                            };
+
+                            const result = await strapi.service('api::v1.v1').sendRegistrationNotifications(
+                                student,
+                                addon_title,
+                                password,
+                                whatsappParams
+                            );
+                            console.log('Background notification service completed:', result);
+
+                            // Update the student document with the actual notification results
+                            await strapi.documents('api::student.student').update({
+                                documentId: student.documentId,
+                                data: {
+                                    mail_sent: result.mail_sent,
+                                    wa_sent: result.wa_sent
+                                }
+                            });
+                        } catch (error) {
+                            console.error('Background notification service failed:', error);
+                            // Update with error status - both notifications failed
+                            await strapi.documents('api::student.student').update({
+                                documentId: student.documentId,
+                                data: {
+                                    mail_sent: false,
+                                    wa_sent: false
+                                }
+                            });
+                        }
+                    });
+
+                    // Update student with payment details (notifications handled in background)
                     await strapi.documents('api::student.student').update({
                         documentId: student.documentId,
                         data: {
@@ -305,7 +246,9 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                             publishedAt: new Date(), // Publish the student
                             payment_verified_at: new Date(),
                             payment_captured_at: new Date(),
-                            mail_sent: mail_sent
+                            // Notification fields will be updated by background process
+                            mail_sent: false,
+                            wa_sent: false
                         }
                     })
 
