@@ -223,6 +223,11 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                     wa_sent: result.wa_sent
                                 }
                             });
+
+                            // Ensure the document remains published after the update
+                            await strapi.documents('api::student.student').publish({
+                                documentId: student.documentId
+                            });
                         } catch (error) {
                             console.error('Background notification service failed:', error);
                             // Update with error status - both notifications failed
@@ -232,6 +237,11 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                     mail_sent: false,
                                     wa_sent: false
                                 }
+                            });
+
+                            // Ensure the document remains published after the update
+                            await strapi.documents('api::student.student').publish({
+                                documentId: student.documentId
                             });
                         }
                     });
