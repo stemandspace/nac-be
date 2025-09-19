@@ -191,15 +191,28 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                         console.log("cosmicKidsAccount", cosmicKidsAccount);
                     }
 
-                    // Send unified notifications (email + WhatsApp) - completely non-blocking
-                    // Run notification service in background without blocking the main flow
+                    // Send notifications (email + WhatsApp) - completely non-blocking
+                    // Run notification services in background without blocking the main flow
                     setImmediate(async () => {
+                        let mail_sent = false;
+                        let wa_sent = false;
+
                         try {
-                            // Determine WhatsApp template based on addon type
+                            // Send email notification
+                            console.log('Sending email notification...');
+                            mail_sent = await strapi.service('api::v1.v1').sendEmailNotification(
+                                student,
+                                addon_title,
+                                password
+                            );
+
+                            console.log('Email notification result:', mail_sent);
+
+                            // Send WhatsApp notification
+                            console.log('Sending WhatsApp notification...');
                             const whatsappTemplateId = getWhatsAppTemplate(addon_id);
                             console.log(`Selected WhatsApp template: ${whatsappTemplateId} for addon: ${addon_id}`);
 
-                            // WhatsApp parameters - template changes based on addon type
                             const whatsappParams = {
                                 templateId: whatsappTemplateId,
                                 parameters: [
@@ -207,53 +220,41 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                                 ]
                             };
 
-                            const result = await strapi.service('api::v1.v1').sendRegistrationNotifications(
+                            wa_sent = await strapi.service('api::v1.v1').sendWhatsAppNotification(
                                 student,
-                                addon_title,
-                                password,
                                 whatsappParams
                             );
-                            console.log('Background notification service completed:', result);
+                            console.log('WhatsApp notification result:', wa_sent);
 
-                            // Update the student document with the actual notification results
-                            await strapi.documents('api::student.student').update({
-                                documentId: student.documentId,
-                                data: {
-                                    mail_sent: result.mail_sent,
-                                    wa_sent: result.wa_sent
-                                }
-                            });
-
-                            // Ensure the document remains published after the update
-                            await strapi.documents('api::student.student').publish({
-                                documentId: student.documentId
-                            });
                         } catch (error) {
-                            console.error('Background notification service failed:', error);
-                            // Update with error status - both notifications failed
+                            console.error('Background notification services failed:', error);
+                            // Individual services handle their own errors and return boolean results
+                        }
+
+                        // Update the student document with the notification results
+                        // Only update, don't try to publish again as it's already published
+                        try {
                             await strapi.documents('api::student.student').update({
                                 documentId: student.documentId,
                                 data: {
-                                    mail_sent: false,
-                                    wa_sent: false
+                                    mail_sent: mail_sent,
+                                    wa_sent: wa_sent
                                 }
                             });
 
-                            // Ensure the document remains published after the update
-                            await strapi.documents('api::student.student').publish({
-                                documentId: student.documentId
-                            });
+                            console.log('Notification status updated:', { mail_sent, wa_sent });
+                        } catch (updateError) {
+                            console.error('Failed to update notification status:', updateError);
                         }
                     });
 
-                    // Update student with payment details (notifications handled in background)
+                    // Update student with payment details and publish (notifications handled in background)
                     await strapi.documents('api::student.student').update({
                         documentId: student.documentId,
                         data: {
                             payment_id: payment.id,
                             payment_status: 'completed',
                             payment_method: payment.method,
-                            publishedAt: new Date(), // Publish the student
                             payment_verified_at: new Date(),
                             payment_captured_at: new Date(),
                             // Notification fields will be updated by background process
@@ -262,6 +263,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                         }
                     })
 
+                    // Publish the student document after payment completion
                     await strapi.documents('api::student.student').publish({
                         documentId: student.documentId
                     })
