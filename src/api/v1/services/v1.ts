@@ -45,10 +45,10 @@ interface WhatsAppParameters {
 
 const COSMIC_KIDS_API_BASE = 'https://api.cosmickids.club/api';
 const ZEPTO_MAIL_API_URL = 'https://api.zeptomail.in/v1.1/email/template/batch';
-const ZEPTO_MAIL_API_KEY = 'PHtE6r0PQe++iWMt80VStKSxQMWhZ94nru40f1FC491HAvMHFk1Vq9gslTGzrB0sVaJGF/GTzoxgtuud4ujRd2u7YW9IDWqyqK3sx/VYSPOZsbq6x00csF4dck3aXIXsdddq0CTUvtzeNA==';
+const ZEPTO_MAIL_API_KEY = process.env.ZEPTO_MAIL_API_KEY;
 const ZEPTO_MAIL_TEMPLATE_KEY = '2518b.5ca07f11c3f3c129.k1.71ca9510-7de5-11f0-8e5b-525400c92439.198c86170e1';
 const ULGEBRA_WEBHOOK_URL = 'https://api.ulgebra.com/v1/workflows?extensionName=whatsappforspreadsheet';
-const ULGEBRA_WEBHOOK_AUTHTOKEN = 'd2hhdHNhcHBmb3JzcHJlYWRzaGVldC5IVXR3cGthWUNYVWJNRjFpcDJBeW5yVXBqOVQyLl9TQUFTXzczZTJiOTExMDA4My00NTE0LWExMzYtY2ViMGJkYTJmNDU4';
+const ULGEBRA_WEBHOOK_AUTHTOKEN = process.env.ULGEBRA_WEBHOOK_AUTHTOKEN;
 
 const v1Service = factories.createCoreService('api::v1.v1', ({ strapi }) => ({
     /**

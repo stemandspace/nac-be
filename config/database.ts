@@ -1,8 +1,8 @@
-export default () => ({
+export default ({ env }) => ({
   connection: {
     client: 'postgres',
     connection: {
-      connectionString: 'postgresql://postgres:QefoouZSrtkCUeHCdxSwUWttoqSMqJEh@tramway.proxy.rlwy.net:40273/railway',
+      connectionString: env('DATABASE_URL'),
       ssl: { rejectUnauthorized: false },
     },
     acquireConnectionTimeout: 60000,

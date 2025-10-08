@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 
-const ZEPTO_MAIL_API_KEY = 'PHtE6r0PQe++iWMt80VStKSxQMWhZ94nru40f1FC491HAvMHFk1Vq9gslTGzrB0sVaJGF/GTzoxgtuud4ujRd2u7YW9IDWqyqK3sx/VYSPOZsbq6x00csF4dck3aXIXsdddq0CTUvtzeNA==';
+const ZEPTO_MAIL_API_KEY = process.env.ZEPTO_MAIL_API_KEY;
 
 
 const from = {
