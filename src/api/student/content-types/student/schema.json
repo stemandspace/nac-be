@@ -57,7 +57,11 @@
     "payment_status": {
       "type": "enumeration",
       "default": "pending",
-      "enum": ["pending", "completed", "failed"]
+      "enum": [
+        "pending",
+        "completed",
+        "failed"
+      ]
     },
     "selected_addon": {
       "type": "json"
@@ -79,6 +83,9 @@
     },
     "payment_captured_at": {
       "type": "datetime"
+    },
+    "label": {
+      "type": "string"
     }
   }
 }

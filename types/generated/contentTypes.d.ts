@@ -426,6 +426,7 @@ export interface ApiStudentStudent extends Struct.CollectionTypeSchema {
     email: Schema.Attribute.Email & Schema.Attribute.Unique;
     grade: Schema.Attribute.String;
     is_overseas: Schema.Attribute.Boolean;
+    label: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',

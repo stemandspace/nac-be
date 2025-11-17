@@ -10,6 +10,11 @@ module.exports = {
             method: 'POST',
             path: '/v1/webhook',
             handler: 'v1.webhookHandler',
+        },
+        {
+            method: 'POST',
+            path: '/v1/bulk-upload',
+            handler: 'bulk-upload.bulkUpload',
         }
     ]
 }
