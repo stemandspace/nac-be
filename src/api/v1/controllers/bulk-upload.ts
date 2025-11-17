@@ -1,24 +1,8 @@
 /**
  * Bulk Upload Controller
- * Handles CSV file uploads for bulk student registration processing
+ * Handles bulk student registration processing from JSON data
  */
-import { parse } from 'csv-parse/sync';
 import { factories } from '@strapi/strapi';
-
-/**
- * Get WhatsApp template ID based on addon type
- * @param {string} addon_id - The addon ID
- * @returns {string} - WhatsApp template ID
- */
-function getWhatsAppTemplate(addon_id: string): string {
-    const templateMap: { [key: string]: string } = {
-        'credits': 'nac_spacetopia_cre',
-        'basic': 'nac_spacetopia_protostar',
-        'premium': 'nac_spacetopia_supernova'
-    };
-
-    return templateMap[addon_id] || 'nac_spacetopia_no_cre';
-}
 
 interface CSVRow {
     name: string;
@@ -29,8 +13,6 @@ interface CSVRow {
     section: string;
     payment_id: string;
     is_overseas: string;
-    addon_id?: string;
-    addon_title?: string;
     dob?: string;
     city?: string;
 }
@@ -38,37 +20,18 @@ interface CSVRow {
 export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
     async bulkUpload(ctx) {
         try {
-            // Check if file is uploaded - handle different file upload structures
-            let file;
-            if (ctx.request.files && ctx.request.files.file) {
-                file = ctx.request.files.file;
-            } else if (ctx.request.files && Array.isArray(ctx.request.files.files) && ctx.request.files.files.length > 0) {
-                file = ctx.request.files.files[0];
-            } else if (ctx.request.files && typeof ctx.request.files.files === 'object' && !Array.isArray(ctx.request.files.files)) {
-                file = ctx.request.files.files;
-            } else {
-                ctx.throw(400, 'No file uploaded. Please upload a CSV file using multipart/form-data with field name "file".');
+            // Get JSON data from request body
+            const { data } = ctx.request.body;
+
+            if (!data || !Array.isArray(data)) {
+                ctx.throw(400, 'Invalid request. Expected JSON array in "data" field.');
             }
 
-            // Validate file type
-            const fileName = file.name || file.filename || 'unknown';
-            if (!fileName.endsWith('.csv')) {
-                ctx.throw(400, 'Invalid file type. Please upload a CSV file.');
+            if (data.length === 0) {
+                ctx.throw(400, 'No data provided. Please provide at least one record.');
             }
 
-            // Read and parse CSV file
-            const fileData = file.data || file.buffer || file;
-            const csvContent = Buffer.isBuffer(fileData) ? fileData.toString('utf-8') : fileData.toString('utf-8');
-            const records: CSVRow[] = parse(csvContent, {
-                columns: true,
-                skip_empty_lines: true,
-                trim: true,
-                cast: true
-            });
-
-            if (!records || records.length === 0) {
-                ctx.throw(400, 'CSV file is empty or invalid.');
-            }
+            const records: CSVRow[] = data;
 
             // Validate required columns
             const requiredColumns = ['name', 'email', 'phone', 'school', 'grade', 'section', 'payment_id', 'is_overseas'];
@@ -116,7 +79,8 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                         payment_captured_at: new Date(),
                         payment_method: 'bulk_upload',
                         mail_sent: false,
-                        wa_sent: false
+                        wa_sent: false,
+                        label: 'sheet' // Mark entries created through bulk upload
                     };
 
                     // Add optional fields if present
@@ -125,13 +89,6 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                     }
                     if (row.city) {
                         studentData.city = row.city.trim();
-                    }
-                    if (row.addon_id) {
-                        // Store addon info if provided in CSV
-                        studentData.selected_addon = {
-                            id: row.addon_id.trim(),
-                            title: row.addon_title?.trim() || row.addon_id.trim()
-                        };
                     }
 
                     // Check if student already exists
@@ -161,19 +118,12 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                         documentId: student.documentId
                     });
 
-                    // Get addon information from student or row
-                    const addon_id = row.addon_id || (student.selected_addon as any)?.id || null;
-                    const addon_title = row.addon_title || (student.selected_addon as any)?.title || "N/A";
-
-                    // Process Cosmic Kids account creation and addons (similar to webhook)
-                    let user_id = null;
+                    // Process Cosmic Kids account creation (similar to webhook)
                     const isEmailRegisteredInCosmicKids = await strapi.service('api::v1.v1').isEmailRegisteredInCosmicKids(student.email);
 
                     let password = "Use your old password. If you have forgotten your password, you can change it in the application.";
 
-                    if (isEmailRegisteredInCosmicKids.registered) {
-                        user_id = isEmailRegisteredInCosmicKids.userId;
-                    } else {
+                    if (!isEmailRegisteredInCosmicKids.registered) {
                         password = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
                         const cosmicKidsAccount = await strapi.service('api::v1.v1').createCosmicKidsAccount({
                             username: student.email,
@@ -181,35 +131,14 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
                             password: password
                         });
 
-                        const recheckRegistration = await strapi.service('api::v1.v1').isEmailRegisteredInCosmicKids(student.email);
-                        user_id = recheckRegistration.userId;
-
                         console.log("cosmicKidsAccount created for bulk upload:", cosmicKidsAccount);
-                    }
-
-                    // Add addons if user_id and addon_id are available
-                    if (user_id && addon_id) {
-                        // Get payment amount from student record or use default
-                        const paymentAmount = student.order_amount ? Number(student.order_amount) / 100 : 0;
-
-                        const addonsPayload = {
-                            userId: user_id,
-                            addons: {
-                                type: addon_id,
-                                amount: paymentAmount,
-                                credits: addon_id === "credits" ? 35 : addon_id === "basic" ? 240 : 315
-                            }
-                        };
-
-                        console.log("addonsPayload for bulk upload:", addonsPayload);
-                        await strapi.service('api::v1.v1').addUserAddons(addonsPayload);
                     }
 
                     // Send notifications in background (non-blocking)
                     setImmediate(async () => {
                         try {
-                            const whatsappTemplateId = getWhatsAppTemplate(addon_id);
-                            console.log(`Selected WhatsApp template: ${whatsappTemplateId} for addon: ${addon_id}`);
+                            // Use default WhatsApp template for bulk uploads
+                            const whatsappTemplateId = 'nac_spacetopia_no_cre';
 
                             const whatsappParams = {
                                 templateId: whatsappTemplateId,
@@ -220,7 +149,7 @@ export default factories.createCoreController('api::v1.v1', ({ strapi }) => ({
 
                             const result = await strapi.service('api::v1.v1').sendRegistrationNotifications(
                                 student,
-                                addon_title,
+                                "N/A",
                                 password,
                                 whatsappParams
                             );
